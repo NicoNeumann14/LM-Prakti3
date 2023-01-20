@@ -2,10 +2,8 @@ package com.example.lm_rhn_prakti2
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.location.LocationManager
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -124,8 +122,17 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     }
 
+    override fun onSupportNavigateUp(): Boolean {
+        onBackPressed()
+        return true
+    }
 
-    private fun initView(){
+    private fun initView() {
+        val actionbar = supportActionBar
+        actionbar!!.title = "Periodisches Reporting"
+        actionbar.setDisplayHomeAsUpEnabled(true)
+
+
         btnLocation = findViewById(R.id.btnLocation)
         btnSave = findViewById(R.id.btnSpeichern)
 
