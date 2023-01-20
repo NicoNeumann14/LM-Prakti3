@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">LM_RHN_Prakti2</string>
 
-    <string name="title_activity_menu">MenuActivity</string>
+    <string name="title_activity_menu">Menü</string>
     <string name="btn_periodic">Periodisches Reporting</string>
     <string name="btn_distance">Distanz-basiertes Reporting</string>
     <string name="btn_energy_efficient">Energie-effiziente Strategie</string>
