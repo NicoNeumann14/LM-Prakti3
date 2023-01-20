@@ -1,10 +1,10 @@
-package com.example.lm_rhn_prakti2
+package com.lm22_23.prakti3
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import com.example.lm_rhn_prakti2.databinding.ActivityMenuBinding
+import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.snackbar.Snackbar
+import com.lm22_23.prakti3.databinding.ActivityMenuBinding
 
 class MenuActivity : AppCompatActivity() {
 
@@ -30,24 +30,22 @@ class MenuActivity : AppCompatActivity() {
         //  besser nicht für jede Aufgabe eine neue Activity erstellen, sondern einfach in der
         //  MainActivity jeweils eine andere Funktion aufrufen
         binding.btnDistance.setOnClickListener {
-            val snack = Snackbar.make(it,"Missing", Snackbar.LENGTH_SHORT)
+            val snack = Snackbar.make(it, "Missing", Snackbar.LENGTH_SHORT)
             snack.show()
 //            pushActivity(::class.java)
         }
         binding.btnEnergyEfficient.setOnClickListener {
-            val snack = Snackbar.make(it,"Missing", Snackbar.LENGTH_SHORT)
+            val snack = Snackbar.make(it, "Missing", Snackbar.LENGTH_SHORT)
             snack.show()
 //            pushActivity(::class.java)
         }
         binding.btnStill.setOnClickListener {
-            val snack = Snackbar.make(it,"Missing", Snackbar.LENGTH_SHORT)
+            val snack = Snackbar.make(it, "Missing", Snackbar.LENGTH_SHORT)
             snack.show()
 //            pushActivity(::class.java)
         }
         binding.btnSettings.setOnClickListener {
-            val snack = Snackbar.make(it,"Missing", Snackbar.LENGTH_SHORT)
-            snack.show()
-//            pushActivity(::class.java)
+            pushActivity(SettingsActivity::class.java)
         }
     }
 
