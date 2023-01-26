@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private var wayTime = arrayListOf<Long>()
     private var waypointsWithTime = JSONArray()
+    private var postCounter = 0
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -90,6 +91,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }else{
             getLocation()
+            //getLocationPeriodisch(5000)
         }
 
     }
@@ -167,7 +169,44 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val cameraUpdate = CameraUpdateFactory.newLatLngZoom(waypoints[0], 18f)
         googleMap.animateCamera(cameraUpdate)
     }
+    //Aufgabe 1a)
+    @SuppressLint("MissingPermission")
+    private fun getLocationPeriodisch(deltaTime:Long){
+        postCounter = 0
+        fusedProvider = LocationServices.getFusedLocationProviderClient(this)
+        locationRequest = LocationRequest().setFastestInterval(deltaTime).setInterval(deltaTime).setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
 
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(p0: LocationResult?) {
+                super.onLocationResult(p0)
+
+                if(isStarted){
+                    val jsonLog = JSONObject()
+                    jsonLog.put("Latitude", p0?.lastLocation?.latitude)
+                    jsonLog.put("Longitude", p0?.lastLocation?.longitude)
+                    jsonLog.put("Timestamp", p0?.lastLocation?.time)
+                    posiLogWithTime.put(jsonLog)
+
+                    //der http Post nach jedem gps fix
+                    val jsonArrayPost = JSONArray()
+                    jsonArrayPost.put(jsonLog)
+                    postCounter++
+                    httpPost(jsonArrayPost,"Periodisch-$postCounter")
+                }
+
+
+                btnLocation.setOnClickListener {
+                    wayTime.add(p0?.lastLocation?.time!!)
+                    if(!isStarted) {
+                        isStarted = true
+                    }
+                }
+            }
+        }
+        fusedProvider.requestLocationUpdates(locationRequest,locationCallback,null)
+
+
+    }
 
     @SuppressLint("MissingPermission")
     private fun getLocation(){
@@ -228,6 +267,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         if(requestCode == 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
             getLocation()
+            //getLocationPeriodisch(5000)
         }
 
     }
