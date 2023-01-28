@@ -24,25 +24,24 @@ class MenuActivity : AppCompatActivity() {
 
     private fun initButtons() {
         binding.btnPeriodic.setOnClickListener {
-            pushActivity(MainActivity::class.java)
+            val intent = Intent(this@MenuActivity, MainActivity::class.java)
+            intent.putExtra("ReportingStrategy", ReportingStrategy.PERIODIC)
+            startActivity(intent)
         }
-        // FIXME
-        //  besser nicht für jede Aufgabe eine neue Activity erstellen, sondern einfach in der
-        //  MainActivity jeweils eine andere Funktion aufrufen
         binding.btnDistance.setOnClickListener {
-            val snack = Snackbar.make(it, "Missing", Snackbar.LENGTH_SHORT)
-            snack.show()
-//            pushActivity(::class.java)
+            val intent = Intent(this@MenuActivity, MainActivity::class.java)
+            intent.putExtra("ReportingStrategy", ReportingStrategy.DISTANCE)
+            startActivity(intent)
         }
         binding.btnEnergyEfficient.setOnClickListener {
-            val snack = Snackbar.make(it, "Missing", Snackbar.LENGTH_SHORT)
-            snack.show()
-//            pushActivity(::class.java)
+            val intent = Intent(this@MenuActivity, MainActivity::class.java)
+            intent.putExtra("ReportingStrategy", ReportingStrategy.ENERGY_EFFICIENT)
+            startActivity(intent)
         }
         binding.btnStill.setOnClickListener {
-            val snack = Snackbar.make(it, "Missing", Snackbar.LENGTH_SHORT)
-            snack.show()
-//            pushActivity(::class.java)
+            val intent = Intent(this@MenuActivity, MainActivity::class.java)
+            intent.putExtra("ReportingStrategy", ReportingStrategy.STILL)
+            startActivity(intent)
         }
         binding.btnSettings.setOnClickListener {
             pushActivity(SettingsActivity::class.java)

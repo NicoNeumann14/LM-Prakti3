@@ -48,9 +48,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var waypoints: ArrayList<LatLng>
 
-    //Route2
-//    private var waypoints = arrayListOf(pos0,pos01,pos02,pos1,pos2,pos3,pos4,pos5,pos6,pos7,pos8,pos9,pos10,pos11,pos0)
-
     private var wayTime = arrayListOf<Long>()
     private var waypointsWithTime = JSONArray()
     private var postCounter = 0
@@ -90,8 +87,28 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 ), 0)
             }
         }else{
-            getLocation()
-            //getLocationPeriodisch(5000)
+            when (intent.getSerializableExtra("ReportingStrategy")) {
+                ReportingStrategy.PERIODIC -> {
+                    val value = sharedPref.getInt(PERIOD_MS, 1000)
+                    getLocationPeriodisch(value.toLong())
+                }
+                ReportingStrategy.DISTANCE -> {
+                    val value = sharedPref.getInt(DISTANCE_M, 50)
+                    // TODO: getLocationDistanceBased
+                }
+                ReportingStrategy.ENERGY_EFFICIENT -> {
+                    // TODO: getLocationEnergyEfficient
+                }
+                ReportingStrategy.STILL -> {
+                    val value = sharedPref.getInt(SENSING_SPEED_MS, 10)
+                    // TODO: getLocationStillStrategy
+                }
+                else -> {
+                    println("Keine Reporting Strategie angegeben!")
+                    // evtl. entfernen
+                    getLocation()
+                }
+            }
         }
 
     }
@@ -103,7 +120,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun initView() {
         val actionbar = supportActionBar
-        actionbar!!.title = "Periodisches Reporting"
+        when (intent.getSerializableExtra("ReportingStrategy")) {
+            ReportingStrategy.PERIODIC -> actionbar!!.title = "Periodisches Reporting"
+            ReportingStrategy.DISTANCE -> actionbar!!.title = "Distanz-basiertes Reporting"
+            ReportingStrategy.ENERGY_EFFICIENT -> actionbar!!.title = "Energie-effizientes Reporting"
+            ReportingStrategy.STILL -> actionbar!!.title = "Stillstand gewahres Reporting"
+            else -> actionbar!!.title = "Keine Reporting Strategie angegeben!"
+        }
         actionbar.setDisplayHomeAsUpEnabled(true)
 
 
@@ -152,19 +175,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             googleMap.addMarker(MarkerOptions().position(it).title("Pos$i"))
             i++
         }
-        //Route 1
-        //googleMap.addPolyline(PolylineOptions().add(pos0).add(pos01).add(pos1).add(pos2).add(pos3).add(pos4).add(pos5).add(pos6).add(pos7).add(pos8).add(pos9).add(pos10).add(pos11).add(pos0).color(Color.RED))
 
-        //Route 2
         googleMap.addPolyline(
             PolylineOptions().addAll(waypoints).color(Color.RED)
-//            PolylineOptions().add(pos0).add(pos01).add(pos02).add(pos1).add(pos2).add(pos3).add(pos4).add(pos5).add(pos6).add(pos7).add(pos8).add(pos9).add(pos10).add(pos11).add(pos0).color(
-//                Color.RED
-//            )
         )
-        //Route 3
-        //googleMap.addPolyline(PolylineOptions().add(pos0).add(pos01).add(pos02).add(pos1).add(pos2).add(pos3).add(pos4).add(pos5).add(pos6).add(pos0).color(Color.RED))
-
 
         val cameraUpdate = CameraUpdateFactory.newLatLngZoom(waypoints[0], 18f)
         googleMap.animateCamera(cameraUpdate)

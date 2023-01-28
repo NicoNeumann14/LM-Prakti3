@@ -3,6 +3,9 @@ package com.lm22_23.prakti3
 import com.google.android.gms.maps.model.LatLng
 
 const val SETTINGS_PREFERENCES = "com.lm22_23.prakti3.SETTINGS"
+const val PERIOD_MS = "com.lm22_23.prakti3.PERIOD_MS"
+const val DISTANCE_M = "com.lm22_23.prakti3.DISTANCE_M"
+const val SENSING_SPEED_MS = "com.lm22_23.prakti3.SENSING_SPEED_MS"
 
 const val ROUTE_1 = "com.lm22_23.prakti3.ROUTE_1"
 const val ROUTE_2 = "com.lm22_23.prakti3.ROUTE_2"
