@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.location.Location
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -13,10 +14,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.*
-import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.GoogleMap
-import com.google.android.gms.maps.OnMapReadyCallback
-import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.*
 import com.google.android.gms.maps.model.CircleOptions
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
@@ -52,6 +50,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private var waypointsWithTime = JSONArray()
     private var postCounter = 0
 
+    private var aktuellePosi = Location("aktuellePosi")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -94,7 +93,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
                 ReportingStrategy.DISTANCE -> {
                     val value = sharedPref.getInt(DISTANCE_M, 50)
-                    // TODO: getLocationDistanceBased
+                    distanzbasiertesReporting(value.toDouble())
                 }
                 ReportingStrategy.ENERGY_EFFICIENT -> {
                     // TODO: getLocationEnergyEfficient
@@ -116,6 +115,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
         return true
+    }
+
+    override fun onBackPressed() {
+        super.onBackPressed()
+        if (fusedProvider.removeLocationUpdates(locationCallback).isSuccessful) {
+            Toast.makeText(applicationContext, "removed LocationUpdates", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun initView() {
@@ -167,9 +173,100 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     }
 
+    //Aufgabe 1b
+    fun distanzbasiertesReporting(configurableDistanceThreshold: Double) {
+
+        postCounter = 0
+        var moeglicheNeuePosi = Location("moeglicheNeuePosi")
+        fusedProvider = LocationServices.getFusedLocationProviderClient(this)
+
+        locationRequest = LocationRequest().setFastestInterval(4000).setInterval(4000)
+            .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+
+        aktuellePosi.latitude = 0.0
+        aktuellePosi.longitude = 0.0
+
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(p0: LocationResult?) {
+                super.onLocationResult(p0)
+
+                if ((aktuellePosi!!.latitude == 0.0) && (aktuellePosi!!.longitude == 0.0)) {
+                    aktuellePosi!!.latitude = p0?.lastLocation?.latitude!!
+                    aktuellePosi!!.longitude = p0?.lastLocation?.longitude!!
+                    aktuellePosi!!.time = p0?.lastLocation?.time!!
+
+                    var aktPosiLatLng = LatLng(aktuellePosi?.latitude!!, aktuellePosi?.longitude!!)
+                    googleMap.addCircle(
+                        CircleOptions().center(aktPosiLatLng).radius(2.0).strokeColor(Color.GREEN)
+                            .fillColor(Color.GREEN)
+                    )
+                    googleMap.addCircle(
+                        CircleOptions().center(aktPosiLatLng).radius(configurableDistanceThreshold).strokeColor(Color.RED)
+                    )
+                    val cameraUpdate = CameraUpdateFactory.newLatLngZoom(aktPosiLatLng, 18f)
+                    googleMap.animateCamera(cameraUpdate)
+                }
+
+                if (isStarted) {
+                    moeglicheNeuePosi?.latitude = p0?.lastLocation?.latitude!!
+                    moeglicheNeuePosi?.longitude = p0?.lastLocation?.longitude!!
+                    moeglicheNeuePosi?.time = p0?.lastLocation?.time!!
+
+                    var moegPosiLatLng = LatLng(moeglicheNeuePosi?.latitude!!, moeglicheNeuePosi?.longitude!!)
+                    googleMap.addCircle(
+                        CircleOptions().center(moegPosiLatLng).radius(2.0).strokeColor(Color.BLUE)
+                            .fillColor(Color.BLUE)
+                    )
+
+                    if (aktuellePosi?.distanceTo(moeglicheNeuePosi)!! >= configurableDistanceThreshold) {
+                        aktuellePosi?.latitude = moeglicheNeuePosi?.latitude!!
+                        aktuellePosi?.longitude = moeglicheNeuePosi?.longitude!!
+                        aktuellePosi?.time = moeglicheNeuePosi?.time!!
+
+                        var aktPosiLatLng = LatLng(aktuellePosi?.latitude!!, aktuellePosi?.longitude!!)
+                        googleMap.addCircle(
+                            CircleOptions().center(aktPosiLatLng).radius(2.0).strokeColor(Color.GREEN)
+                                .fillColor(Color.GREEN)
+                        )
+                        googleMap.addCircle(
+                            CircleOptions().center(aktPosiLatLng).radius(configurableDistanceThreshold).strokeColor(Color.RED)
+                        )
+
+                        val jsonLog = JSONObject()
+                        jsonLog.put("Latitude", aktuellePosi?.latitude)
+                        jsonLog.put("Longitude", aktuellePosi?.longitude)
+                        jsonLog.put("Timestamp", aktuellePosi?.time)
+                        posiLogWithTime.put(jsonLog)
+
+                        //http-POST nach jedem neuen passenden GPS-Fix
+                        val jsonPositionPOST = JSONArray()
+                        jsonPositionPOST.put(jsonLog)
+                        postCounter++
+                        httpPost(jsonPositionPOST, "distanzbasiert-$postCounter")
+                        Toast.makeText(applicationContext, "http-POST gesendet", Toast.LENGTH_LONG).show()
+
+                    }
+                    else {
+                        Toast.makeText(applicationContext, "Distanz zu gering", Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                btnLocation.setOnClickListener {
+                    wayTime.add(p0?.lastLocation?.time!!)
+                    if (!isStarted) {
+                        isStarted = true
+                    }
+                }
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
     override fun onMapReady(p0: GoogleMap) {
         googleMap = p0
         googleMap.mapType = GoogleMap.MAP_TYPE_NORMAL
+        fusedProvider.requestLocationUpdates(locationRequest, locationCallback, null)
+
         var i = 1
         waypoints.forEach{
             googleMap.addMarker(MarkerOptions().position(it).title("Pos$i"))
@@ -180,9 +277,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             PolylineOptions().addAll(waypoints).color(Color.RED)
         )
 
-        val cameraUpdate = CameraUpdateFactory.newLatLngZoom(waypoints[0], 18f)
-        googleMap.animateCamera(cameraUpdate)
+        //val cameraUpdate = CameraUpdateFactory.newLatLngZoom(waypoints[0], 18f)
+        //googleMap.animateCamera(cameraUpdate)
     }
+
     //Aufgabe 1a)
     @SuppressLint("MissingPermission")
     private fun getLocationPeriodisch(deltaTime:Long){
@@ -282,6 +380,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if(requestCode == 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
             getLocation()
             //getLocationPeriodisch(5000)
+            distanzbasiertesReporting(50.toDouble())
         }
 
     }
