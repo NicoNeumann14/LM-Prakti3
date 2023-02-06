@@ -154,10 +154,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
     private fun initView() {
         val actionbar = supportActionBar
         when (intent.getSerializableExtra("ReportingStrategy")) {
-            ReportingStrategy.PERIODIC -> actionbar!!.title = "Periodisches Reporting"
-            ReportingStrategy.DISTANCE -> actionbar!!.title = "Distanz-basiertes Reporting"
-            ReportingStrategy.ENERGY_EFFICIENT -> actionbar!!.title = "Energie-effizientes Reporting"
-            ReportingStrategy.STILL -> actionbar!!.title = "Stillstand gewahres Reporting"
+            ReportingStrategy.PERIODIC -> actionbar!!.title = "Periodisches-Reporting"
+            ReportingStrategy.DISTANCE -> actionbar!!.title = "Distanz-basiertes-Reporting"
+            ReportingStrategy.ENERGY_EFFICIENT -> actionbar!!.title = "Energie-effizientes-Reporting"
+            ReportingStrategy.STILL -> actionbar!!.title = "Stillstand-gewahres-Reporting"
             else -> actionbar!!.title = "Keine Reporting Strategie angegeben!"
         }
         actionbar.setDisplayHomeAsUpEnabled(true)
@@ -169,7 +169,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-        //Das ist der Speichern Button, wird benutzt um die manager/sensoren zu removen und über die gespeicherten wp zu interpolieren und dieses array zu http posten.
+
         btnSave.setOnClickListener {
 
             if(wayTime.size >= waypoints.size){
@@ -201,9 +201,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                     waypointsWithTime.put(jsonLog)
                 }
 
+                httpPost(posiLogWithTime,"${actionbar.title}#Posi+Time")
+                Toast.makeText(applicationContext, "http-POST: Posi+Time", Toast.LENGTH_LONG).show()
+
                 val interPolartionsArray = alleKoorLinearInterpolieren(waypointsWithTime)
-                httpPost(posiLogWithTime,"Posipoints")
-                httpPost(interPolartionsArray,"InterpolWaypoints")
+                httpPost(interPolartionsArray,"${actionbar.title}#InterpolPosi")
+                Toast.makeText(applicationContext, "http-POST: InterpolPosi", Toast.LENGTH_LONG).show()
+
                 putCircle(interPolartionsArray, Color.BLUE)
                 putCircle(posiLogWithTime, Color.GREEN)
 
@@ -239,6 +243,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                     jsonArrayPost.put(jsonLog)
                     postCounter++
                     httpPost(jsonArrayPost,"Periodisch-$postCounter")
+                    //Toast.makeText(applicationContext, "http-POST gesendet", Toast.LENGTH_LONG).show()
                 }
 
 
@@ -294,8 +299,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                 }
 
                 if (isStarted) {
-                    // Flags für 1c und 1d
+                    // Flags für 1c und 1d, 1b always true
                     when (intent.getSerializableExtra("ReportingStrategy")) {
+                        ReportingStrategy.DISTANCE -> {
+                            fragGPS = true
+                        }
                         ReportingStrategy.ENERGY_EFFICIENT -> {
                             fragGPS = unterMaxGesc
                         }
@@ -340,7 +348,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                             jsonPositionPOST.put(jsonLog)
                             postCounter++
                             httpPost(jsonPositionPOST, "distanzbasiert-$postCounter")
-                            Toast.makeText(applicationContext, "http-POST gesendet", Toast.LENGTH_LONG).show()
+                            //Toast.makeText(applicationContext, "http-POST gesendet", Toast.LENGTH_LONG).show()
 
                         }
                         else {
@@ -366,7 +374,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         sensorBeschleunigung = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
         if(sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION) != null){
-            // mit Sensor_Delay_... noch die Abtastrate einstellen.
             sensorManager.registerListener(this,sensorBeschleunigung,SensorManager.SENSOR_DELAY_FASTEST)
         }
     }
@@ -388,7 +395,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
     override fun onAccuracyChanged(p0: Sensor?, p1: Int) {
 
     }
-
 
     @SuppressLint("MissingPermission")
     override fun onMapReady(p0: GoogleMap) {
@@ -412,60 +418,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         val cameraUpdate = CameraUpdateFactory.newLatLngZoom(waypoints[0], 18f)
         googleMap.animateCamera(cameraUpdate)
     }
-
-    @SuppressLint("MissingPermission")
-    private fun getLocation(){
-
-        fusedProvider = LocationServices.getFusedLocationProviderClient(this)
-        //locationRequest = LocationRequest().setFastestInterval(2000).setInterval(3000).setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-        locationRequest = LocationRequest().setFastestInterval(2000).setInterval(3000).setPriority(
-            LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY
-        )
-        locationCallback = object : LocationCallback() {
-            override fun onLocationResult(p0: LocationResult?) {
-                super.onLocationResult(p0)
-
-                if(isStarted){
-                    val jsonLog = JSONObject()
-                    jsonLog.put("Latitude", p0?.lastLocation?.latitude)
-                    jsonLog.put("Longitude", p0?.lastLocation?.longitude)
-                    jsonLog.put("Timestamp", p0?.lastLocation?.time)
-                    posiLogWithTime.put(jsonLog)
-
-                }
-
-
-                btnLocation.setOnClickListener {
-                    wayTime.add(p0?.lastLocation?.time!!)
-                    if(!isStarted) {
-                        isStarted = true
-                    }
-                }
-            }
-        }
-        fusedProvider.requestLocationUpdates(locationRequest,locationCallback,null)
-
-        /*
-        locationListener = android.location.LocationListener { p0 ->
-            if(isStarted){
-                val jsonLog = JSONObject()
-                jsonLog.put("Latitude", p0.latitude)
-                jsonLog.put("Longitude", p0.longitude)
-                jsonLog.put("Timestamp", p0.time)
-                posiLogWithTime.put(jsonLog)
-
-            }
-            btnLocation.setOnClickListener {
-                wayTime.add(p0.time)
-                if(!isStarted) {
-                    isStarted = true
-                }
-            }
-        }
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,1000L,0f,locationListener)
-        */
-    }
-
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
@@ -562,7 +514,58 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         return jsonArrayIp
     }
 
+    //Nur noch Vorlage
+    @SuppressLint("MissingPermission")
+    private fun getLocation(){
+
+        fusedProvider = LocationServices.getFusedLocationProviderClient(this)
+        //locationRequest = LocationRequest().setFastestInterval(2000).setInterval(3000).setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+        locationRequest = LocationRequest().setFastestInterval(2000).setInterval(3000).setPriority(
+            LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY
+        )
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(p0: LocationResult?) {
+                super.onLocationResult(p0)
+
+                if(isStarted){
+                    val jsonLog = JSONObject()
+                    jsonLog.put("Latitude", p0?.lastLocation?.latitude)
+                    jsonLog.put("Longitude", p0?.lastLocation?.longitude)
+                    jsonLog.put("Timestamp", p0?.lastLocation?.time)
+                    posiLogWithTime.put(jsonLog)
+
+                }
 
 
+                btnLocation.setOnClickListener {
+                    wayTime.add(p0?.lastLocation?.time!!)
+                    if(!isStarted) {
+                        isStarted = true
+                    }
+                }
+            }
+        }
+        fusedProvider.requestLocationUpdates(locationRequest,locationCallback,null)
+
+        /*
+        locationListener = android.location.LocationListener { p0 ->
+            if(isStarted){
+                val jsonLog = JSONObject()
+                jsonLog.put("Latitude", p0.latitude)
+                jsonLog.put("Longitude", p0.longitude)
+                jsonLog.put("Timestamp", p0.time)
+                posiLogWithTime.put(jsonLog)
+
+            }
+            btnLocation.setOnClickListener {
+                wayTime.add(p0.time)
+                if(!isStarted) {
+                    isStarted = true
+                }
+            }
+        }
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,1000L,0f,locationListener)
+        */
+    }
 
 }
