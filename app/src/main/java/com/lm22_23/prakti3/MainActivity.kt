@@ -13,6 +13,7 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.util.Log
 import android.widget.Button
 import android.widget.Toast
@@ -28,6 +29,7 @@ import okhttp3.*
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.io.IOException
 import kotlin.math.pow
 
@@ -150,7 +152,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         }
     }
 
-
+    //todo SaveButton, flag für 1e setzten bzw erstellen
     private fun initView() {
         val actionbar = supportActionBar
         when (intent.getSerializableExtra("ReportingStrategy")) {
@@ -201,15 +203,20 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                     waypointsWithTime.put(jsonLog)
                 }
 
-                httpPost(posiLogWithTime,"${actionbar.title}#Posi+Time")
+                httpPost(posiLogWithTime, actionbar.title.toString()+"_Posi+Time")
                 Toast.makeText(applicationContext, "http-POST: Posi+Time", Toast.LENGTH_LONG).show()
 
                 val interPolartionsArray = alleKoorLinearInterpolieren(waypointsWithTime)
-                httpPost(interPolartionsArray,"${actionbar.title}#InterpolPosi")
+                httpPost(interPolartionsArray, actionbar.title.toString()+"_InterpolPosi")
                 Toast.makeText(applicationContext, "http-POST: InterpolPosi", Toast.LENGTH_LONG).show()
 
                 putCircle(interPolartionsArray, Color.BLUE)
                 putCircle(posiLogWithTime, Color.GREEN)
+
+                //todo flag für 1e setzten
+                if(true)
+                    saveInDatei()
+
 
             }else{
                 Toast.makeText(this, "Zuwenig Time for Waypoints", Toast.LENGTH_SHORT).show()
@@ -378,6 +385,29 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         }
     }
 
+    //Aufgabe 1e, sichert alle GPS-Fixes+Time und die Anzahl an Uplink-Nachrichten.
+    private fun saveInDatei(){
+        val fileName = Environment.getExternalStoragePublicDirectory(
+            Environment.DIRECTORY_DOWNLOADS)
+
+        val strate: String = when (intent.getSerializableExtra("ReportingStrategy")) {
+            ReportingStrategy.PERIODIC -> "Periodisches-Reporting"
+            ReportingStrategy.DISTANCE -> "Distanz-basiertes-Reporting"
+            ReportingStrategy.ENERGY_EFFICIENT -> "Energie-effizientes-Reporting"
+            ReportingStrategy.STILL -> "Stillstand-gewahres-Reporting"
+            else -> "Reporting-Strategie"
+        }
+
+        val fileS = File(fileName, "$strate.txt")
+
+        fileS.printWriter().use { out->
+            out.println("Anzahl Uplink-Nachrichten: $postCounter")
+            for(i in 0 until posiLogWithTime.length()){
+                out.println(posiLogWithTime[i].toString())
+            }
+        }
+    }
+
     override fun onSensorChanged(p0: SensorEvent?) {
         if(p0!!.sensor.type == Sensor.TYPE_LINEAR_ACCELERATION) {
             val x = p0.values[0]
@@ -392,9 +422,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
     }
 
-    override fun onAccuracyChanged(p0: Sensor?, p1: Int) {
-
-    }
+    override fun onAccuracyChanged(p0: Sensor?, p1: Int) {}
 
     @SuppressLint("MissingPermission")
     override fun onMapReady(p0: GoogleMap) {
