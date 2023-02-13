@@ -13,6 +13,7 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.util.Log
 import android.widget.Button
 import android.widget.Toast
@@ -28,6 +29,7 @@ import okhttp3.*
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.io.IOException
 import kotlin.math.pow
 
@@ -153,14 +155,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         }
     }
 
-
+    //todo SaveButton, flag für 1e setzten bzw erstellen
     private fun initView() {
         val actionbar = supportActionBar
         when (intent.getSerializableExtra("ReportingStrategy")) {
-            ReportingStrategy.PERIODIC -> actionbar!!.title = "Periodisches Reporting"
-            ReportingStrategy.DISTANCE -> actionbar!!.title = "Distanz-basiertes Reporting"
-            ReportingStrategy.ENERGY_EFFICIENT -> actionbar!!.title = "Energie-effizientes Reporting"
-            ReportingStrategy.STILL -> actionbar!!.title = "Stillstand gewahres Reporting"
+            ReportingStrategy.PERIODIC -> actionbar!!.title = "Periodisches-Reporting"
+            ReportingStrategy.DISTANCE -> actionbar!!.title = "Distanz-basiertes-Reporting"
+            ReportingStrategy.ENERGY_EFFICIENT -> actionbar!!.title = "Energie-effizientes-Reporting"
+            ReportingStrategy.STILL -> actionbar!!.title = "Stillstand-gewahres-Reporting"
             else -> actionbar!!.title = "Keine Reporting Strategie angegeben!"
         }
         actionbar.setDisplayHomeAsUpEnabled(true)
@@ -172,7 +174,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-        //Das ist der Speichern Button, wird benutzt um die manager/sensoren zu removen und über die gespeicherten wp zu interpolieren und dieses array zu http posten.
+
         btnSave.setOnClickListener {
 
             if(wayTime.size >= waypoints.size){
@@ -204,11 +206,20 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                     waypointsWithTime.put(jsonLog)
                 }
 
+                httpPost(posiLogWithTime, actionbar.title.toString()+"_Posi+Time")
+                Toast.makeText(applicationContext, "http-POST: Posi+Time", Toast.LENGTH_LONG).show()
+
                 val interPolartionsArray = alleKoorLinearInterpolieren(waypointsWithTime)
-                httpPost(posiLogWithTime,"Posipoints")
-                httpPost(interPolartionsArray,"InterpolWaypoints")
+                httpPost(interPolartionsArray, actionbar.title.toString()+"_InterpolPosi")
+                Toast.makeText(applicationContext, "http-POST: InterpolPosi", Toast.LENGTH_LONG).show()
+
                 putCircle(interPolartionsArray, Color.BLUE)
                 putCircle(posiLogWithTime, Color.GREEN)
+
+                //todo flag für 1e setzten
+                if(true)
+                    saveInDatei()
+
 
             }else{
                 Toast.makeText(this, "Zuwenig Time for Waypoints", Toast.LENGTH_SHORT).show()
@@ -242,6 +253,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                     jsonArrayPost.put(jsonLog)
                     postCounter++
                     httpPost(jsonArrayPost,"Periodisch-$postCounter")
+                    Toast.makeText(applicationContext, "http-POST gesendet", Toast.LENGTH_SHORT).show()
                 }
 
 
@@ -392,8 +404,30 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         sensorBeschleunigung = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
         if(sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION) != null){
-            // mit Sensor_Delay_... noch die Abtastrate einstellen.
             sensorManager.registerListener(this,sensorBeschleunigung,SensorManager.SENSOR_DELAY_FASTEST)
+        }
+    }
+
+    //Aufgabe 1e, sichert alle GPS-Fixes+Time und die Anzahl an Uplink-Nachrichten.
+    private fun saveInDatei(){
+        val fileName = Environment.getExternalStoragePublicDirectory(
+            Environment.DIRECTORY_DOWNLOADS)
+
+        val strate: String = when (intent.getSerializableExtra("ReportingStrategy")) {
+            ReportingStrategy.PERIODIC -> "Periodisches-Reporting"
+            ReportingStrategy.DISTANCE -> "Distanz-basiertes-Reporting"
+            ReportingStrategy.ENERGY_EFFICIENT -> "Energie-effizientes-Reporting"
+            ReportingStrategy.STILL -> "Stillstand-gewahres-Reporting"
+            else -> "Reporting-Strategie"
+        }
+
+        val fileS = File(fileName, "$strate.txt")
+
+        fileS.printWriter().use { out->
+            out.println("Anzahl Uplink-Nachrichten: $postCounter")
+            for(i in 0 until posiLogWithTime.length()){
+                out.println(posiLogWithTime[i].toString())
+            }
         }
     }
 
@@ -411,10 +445,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
     }
 
-    override fun onAccuracyChanged(p0: Sensor?, p1: Int) {
-
-    }
-
+    override fun onAccuracyChanged(p0: Sensor?, p1: Int) {}
 
     @SuppressLint("MissingPermission")
     override fun onMapReady(p0: GoogleMap) {
@@ -435,60 +466,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         val cameraUpdate = CameraUpdateFactory.newLatLngZoom(waypoints[0], 18f)
         googleMap.animateCamera(cameraUpdate)
     }
-
-    @SuppressLint("MissingPermission")
-    private fun getLocation(){
-
-        fusedProvider = LocationServices.getFusedLocationProviderClient(this)
-        //locationRequest = LocationRequest().setFastestInterval(2000).setInterval(3000).setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-        locationRequest = LocationRequest().setFastestInterval(2000).setInterval(3000).setPriority(
-            LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY
-        )
-        locationCallback = object : LocationCallback() {
-            override fun onLocationResult(p0: LocationResult?) {
-                super.onLocationResult(p0)
-
-                if(isStarted){
-                    val jsonLog = JSONObject()
-                    jsonLog.put("Latitude", p0?.lastLocation?.latitude)
-                    jsonLog.put("Longitude", p0?.lastLocation?.longitude)
-                    jsonLog.put("Timestamp", p0?.lastLocation?.time)
-                    posiLogWithTime.put(jsonLog)
-
-                }
-
-
-                btnLocation.setOnClickListener {
-                    wayTime.add(p0?.lastLocation?.time!!)
-                    if(!isStarted) {
-                        isStarted = true
-                    }
-                }
-            }
-        }
-        fusedProvider.requestLocationUpdates(locationRequest,locationCallback,null)
-
-        /*
-        locationListener = android.location.LocationListener { p0 ->
-            if(isStarted){
-                val jsonLog = JSONObject()
-                jsonLog.put("Latitude", p0.latitude)
-                jsonLog.put("Longitude", p0.longitude)
-                jsonLog.put("Timestamp", p0.time)
-                posiLogWithTime.put(jsonLog)
-
-            }
-            btnLocation.setOnClickListener {
-                wayTime.add(p0.time)
-                if(!isStarted) {
-                    isStarted = true
-                }
-            }
-        }
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,1000L,0f,locationListener)
-        */
-    }
-
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
@@ -587,7 +564,58 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         return jsonArrayIp
     }
 
+    //Nur noch Vorlage
+    @SuppressLint("MissingPermission")
+    private fun getLocation(){
+
+        fusedProvider = LocationServices.getFusedLocationProviderClient(this)
+        //locationRequest = LocationRequest().setFastestInterval(2000).setInterval(3000).setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+        locationRequest = LocationRequest().setFastestInterval(2000).setInterval(3000).setPriority(
+            LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY
+        )
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(p0: LocationResult?) {
+                super.onLocationResult(p0)
+
+                if(isStarted){
+                    val jsonLog = JSONObject()
+                    jsonLog.put("Latitude", p0?.lastLocation?.latitude)
+                    jsonLog.put("Longitude", p0?.lastLocation?.longitude)
+                    jsonLog.put("Timestamp", p0?.lastLocation?.time)
+                    posiLogWithTime.put(jsonLog)
+
+                }
 
 
+                btnLocation.setOnClickListener {
+                    wayTime.add(p0?.lastLocation?.time!!)
+                    if(!isStarted) {
+                        isStarted = true
+                    }
+                }
+            }
+        }
+        fusedProvider.requestLocationUpdates(locationRequest,locationCallback,null)
+
+        /*
+        locationListener = android.location.LocationListener { p0 ->
+            if(isStarted){
+                val jsonLog = JSONObject()
+                jsonLog.put("Latitude", p0.latitude)
+                jsonLog.put("Longitude", p0.longitude)
+                jsonLog.put("Timestamp", p0.time)
+                posiLogWithTime.put(jsonLog)
+
+            }
+            btnLocation.setOnClickListener {
+                wayTime.add(p0.time)
+                if(!isStarted) {
+                    isStarted = true
+                }
+            }
+        }
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,1000L,0f,locationListener)
+        */
+    }
 
 }
