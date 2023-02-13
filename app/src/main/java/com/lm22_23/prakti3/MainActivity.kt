@@ -31,7 +31,7 @@ import org.json.JSONObject
 import java.io.IOException
 import kotlin.math.pow
 
-class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListener {
+class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListener, android.location.LocationListener {
 
 
     private lateinit var mapFragment: SupportMapFragment
@@ -45,7 +45,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
     private lateinit var locationCallback: LocationCallback
 
     private lateinit var locationManager: LocationManager
-    private lateinit var locationListener:android.location.LocationListener
+    private var configurableDistanceThreshold: Int = 0
+    private var configurableMaxSpeed: Int = 0
 
     private var posiLogWithTime = JSONArray()
     private var isStarted = false
@@ -57,12 +58,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
     private var postCounter = 0
 
     private var aktuellePosi = Location("aktuellePosi")
+    private var moeglicheNeuePosi = Location("moeglicheNeuePosi")
 
     //Sensoren
     private lateinit var sensorManager: SensorManager
     private lateinit var sensorBeschleunigung: Sensor
     private var inBewegung = false
-    private var unterMaxGesc = false
 
     private var fragGPS = false
 
@@ -104,16 +105,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                     getLocationPeriodisch(value.toLong())
                 }
                 ReportingStrategy.DISTANCE -> {
-                    val value = sharedPref.getInt(DISTANCE_M, 50)
-                    distanzbasiertesReporting(value.toDouble())
+                    configurableDistanceThreshold = sharedPref.getInt(DISTANCE_M, 50)
+                    distanzbasiertesReporting()
                 }
                 ReportingStrategy.ENERGY_EFFICIENT -> {
-                    // TODO: getLocationEnergyEfficient
+                    configurableDistanceThreshold = sharedPref.getInt(DISTANCE_M, 50)
+                    configurableMaxSpeed = sharedPref.getInt(SENSING_SPEED_MS, 2)
+                    distanzbasiertesReporting()
                 }
                 ReportingStrategy.STILL -> {
-                    val value = sharedPref.getInt(DISTANCE_M, 50)
+                    configurableDistanceThreshold = sharedPref.getInt(DISTANCE_M, 50)
                     stillstandstrategie()
-                    distanzbasiertesReporting(value.toDouble())
+                    distanzbasiertesReporting()
                 }
                 else -> {
                     println("Keine Reporting Strategie angegeben!")
@@ -137,13 +140,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                 fusedProvider.removeLocationUpdates(locationCallback)
             }
             ReportingStrategy.DISTANCE -> {
-                locationManager.removeUpdates(locationListener)
+                locationManager.removeUpdates(this)
             }
             ReportingStrategy.ENERGY_EFFICIENT -> {
-                locationManager.removeUpdates(locationListener)
+                locationManager.removeUpdates(this)
             }
             ReportingStrategy.STILL -> {
-                locationManager.removeUpdates(locationListener)
+                locationManager.removeUpdates(this)
                 sensorManager.unregisterListener(this, sensorBeschleunigung)
             }
 
@@ -179,13 +182,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                         fusedProvider.removeLocationUpdates(locationCallback)
                     }
                     ReportingStrategy.DISTANCE -> {
-                        locationManager.removeUpdates(locationListener)
+                        locationManager.removeUpdates(this)
                     }
                     ReportingStrategy.ENERGY_EFFICIENT -> {
-                        locationManager.removeUpdates(locationListener)
+                        locationManager.removeUpdates(this)
                     }
                     ReportingStrategy.STILL -> {
-                        locationManager.removeUpdates(locationListener)
+                        locationManager.removeUpdates(this)
                         sensorManager.unregisterListener(this, sensorBeschleunigung)
                     }
 
@@ -256,78 +259,64 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
     }
 
-    //Aufgabe 1b
-    //todo: localMangaer
+    private fun positionZeichnen(posi: LatLng) {
+        googleMap.addCircle(CircleOptions().center(posi).radius(2.0).strokeColor(Color.GREEN)
+            .fillColor(Color.GREEN))
+        googleMap.addCircle(CircleOptions().center(posi).radius(
+            configurableDistanceThreshold.toDouble()).strokeColor(Color.RED))
+    }
+
     @SuppressLint("MissingPermission")
-    private fun distanzbasiertesReporting(configurableDistanceThreshold: Double) {
+    override fun onLocationChanged(location: Location) {
 
-        postCounter = 0
-        val moeglicheNeuePosi = Location("moeglicheNeuePosi")
-        fusedProvider = LocationServices.getFusedLocationProviderClient(this)
+        //aktuelle Position setzen und auf Map einzeichnen, wenn es noch keine akt. Position gibt
+        if ((aktuellePosi.latitude == 0.0) && (aktuellePosi.longitude == 0.0)) {
+            aktuellePosi.latitude = location.latitude
+            aktuellePosi.longitude = location.longitude
+            aktuellePosi.time = location.time
 
+            val aktPosiLatLng = LatLng(aktuellePosi.latitude, aktuellePosi.longitude)
+            positionZeichnen(aktPosiLatLng)
 
-        locationRequest = LocationRequest().setFastestInterval(4000).setInterval(4000)
-            .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+        }
 
-        aktuellePosi.latitude = 0.0
-        aktuellePosi.longitude = 0.0
+        if (isStarted) {
 
-        locationCallback = object : LocationCallback() {
-            override fun onLocationResult(p0: LocationResult?) {
-                super.onLocationResult(p0)
-
-                if ((aktuellePosi.latitude == 0.0) && (aktuellePosi.longitude == 0.0)) {
-                    aktuellePosi.latitude = p0?.lastLocation?.latitude!!
-                    aktuellePosi.longitude = p0.lastLocation?.longitude!!
-                    aktuellePosi.time = p0.lastLocation?.time!!
-
-                    val aktPosiLatLng = LatLng(aktuellePosi.latitude, aktuellePosi.longitude)
-                    googleMap.addCircle(
-                        CircleOptions().center(aktPosiLatLng).radius(2.0).strokeColor(Color.GREEN)
-                            .fillColor(Color.GREEN)
-                    )
-                    googleMap.addCircle(
-                        CircleOptions().center(aktPosiLatLng).radius(configurableDistanceThreshold).strokeColor(Color.RED)
-                    )
-                    val cameraUpdate = CameraUpdateFactory.newLatLngZoom(aktPosiLatLng, 18f)
-                    googleMap.animateCamera(cameraUpdate)
+            // Flags für 1c und 1d
+            when (intent.getSerializableExtra("ReportingStrategy")) {
+                ReportingStrategy.DISTANCE,
+                ReportingStrategy.ENERGY_EFFICIENT-> {
+                    fragGPS = true
                 }
 
-                if (isStarted) {
-                    // Flags für 1c und 1d
-                    when (intent.getSerializableExtra("ReportingStrategy")) {
-                        ReportingStrategy.ENERGY_EFFICIENT -> {
-                            fragGPS = unterMaxGesc
-                        }
-                        ReportingStrategy.STILL -> {
-                            fragGPS = inBewegung
-                        }
-                    }
+                ReportingStrategy.STILL -> {
+                    fragGPS = inBewegung
+                }
+            }
 
-                    if(fragGPS){
-                        moeglicheNeuePosi.latitude = p0?.lastLocation?.latitude!!
-                        moeglicheNeuePosi.longitude = p0.lastLocation?.longitude!!
-                        moeglicheNeuePosi.time = p0.lastLocation?.time!!
+            if(fragGPS){
 
+                when (intent.getSerializableExtra("ReportingStrategy")) {
+                    ReportingStrategy.DISTANCE,
+                    ReportingStrategy.ENERGY_EFFICIENT,
+                    ReportingStrategy.STILL-> {
+                        moeglicheNeuePosi.latitude = location.latitude
+                        moeglicheNeuePosi.longitude = location.longitude
+                        moeglicheNeuePosi.time = location.time
+
+                        //moegliche neue Posi wird in Blau gezeichnet
                         val moegPosiLatLng = LatLng(moeglicheNeuePosi.latitude, moeglicheNeuePosi.longitude)
-                        googleMap.addCircle(
-                            CircleOptions().center(moegPosiLatLng).radius(2.0).strokeColor(Color.BLUE)
-                                .fillColor(Color.BLUE)
-                        )
+                        googleMap.addCircle(CircleOptions().center(moegPosiLatLng).radius(2.0).strokeColor(Color.BLUE)
+                            .fillColor(Color.BLUE))
 
-                        if (aktuellePosi.distanceTo(moeglicheNeuePosi) >= configurableDistanceThreshold) {
+                        if (aktuellePosi.distanceTo(moeglicheNeuePosi) > configurableDistanceThreshold) {
                             aktuellePosi.latitude = moeglicheNeuePosi.latitude
                             aktuellePosi.longitude = moeglicheNeuePosi.longitude
                             aktuellePosi.time = moeglicheNeuePosi.time
 
+                            //neue aktuelle Posi wird in Gruen gezeichnet
                             val aktPosiLatLng = LatLng(aktuellePosi.latitude, aktuellePosi.longitude)
-                            googleMap.addCircle(
-                                CircleOptions().center(aktPosiLatLng).radius(2.0).strokeColor(Color.GREEN)
-                                    .fillColor(Color.GREEN)
-                            )
-                            googleMap.addCircle(
-                                CircleOptions().center(aktPosiLatLng).radius(configurableDistanceThreshold).strokeColor(Color.RED)
-                            )
+                            positionZeichnen(aktPosiLatLng)
 
                             val jsonLog = JSONObject()
                             jsonLog.put("Latitude", aktuellePosi.latitude)
@@ -339,26 +328,63 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                             val jsonPositionPOST = JSONArray()
                             jsonPositionPOST.put(jsonLog)
                             postCounter++
-                            httpPost(jsonPositionPOST, "distanzbasiert-$postCounter")
-                            Toast.makeText(applicationContext, "http-POST gesendet", Toast.LENGTH_LONG).show()
 
+                            when (intent.getSerializableExtra("ReportingStrategy")) {
+                                ReportingStrategy.DISTANCE -> {
+                                    httpPost(jsonPositionPOST, "distanzbasiert-$postCounter")
+                                }
+
+                                ReportingStrategy.ENERGY_EFFICIENT -> {
+                                    httpPost(jsonPositionPOST, "energieeffizient-$postCounter")
+                                }
+
+                                ReportingStrategy.STILL -> {
+                                    httpPost(jsonPositionPOST, "stillstandsbasiert-$postCounter")
+                                }
+                            }
+
+                            Toast.makeText(applicationContext, "http-POST gesendet", Toast.LENGTH_LONG).show()
                         }
                         else {
                             Toast.makeText(applicationContext, "Distanz zu gering", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
-
-                btnLocation.setOnClickListener {
-                    wayTime.add(p0?.lastLocation?.time!!)
-                    if (!isStarted) {
-                        isStarted = true
-                    }
-                }
             }
         }
 
-        fusedProvider.requestLocationUpdates(locationRequest, locationCallback, null)
+        btnLocation.setOnClickListener {
+            wayTime.add(location.time)
+                if (!isStarted) {
+                    isStarted = true
+                }
+        }
+    }
+
+
+    //Aufgabe 1b + c
+    @SuppressLint("MissingPermission")
+    private fun distanzbasiertesReporting() {
+
+        postCounter = 0
+        aktuellePosi.latitude = 0.0
+        aktuellePosi.longitude = 0.0
+
+        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+        when (intent.getSerializableExtra("ReportingStrategy")) {
+            ReportingStrategy.DISTANCE,
+            ReportingStrategy.STILL-> {
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, this)
+            }
+        }
+
+        when (intent.getSerializableExtra("ReportingStrategy")) {
+            ReportingStrategy.ENERGY_EFFICIENT -> {
+                val time = ((configurableDistanceThreshold / configurableMaxSpeed).toLong()) * 1000
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, time, configurableDistanceThreshold.toFloat(), this)
+            }
+        }
     }
 
     //Aufgabe 1d zur erweiterung von 1b
@@ -394,9 +420,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
     override fun onMapReady(p0: GoogleMap) {
         googleMap = p0
         googleMap.mapType = GoogleMap.MAP_TYPE_NORMAL
-
-        //Hat die APP zum absturtz gebracht, nur in den Methoden zu den Aufgaben aufrufen.. siehe zeile 323
-        //fusedProvider.requestLocationUpdates(locationRequest, locationCallback, null)
 
         var i = 1
         waypoints.forEach{
@@ -479,16 +502,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                     getLocationPeriodisch(value.toLong())
                 }
                 ReportingStrategy.DISTANCE -> {
-                    val value = sharedPref.getInt(DISTANCE_M, 50)
-                    distanzbasiertesReporting(value.toDouble())
+                    configurableDistanceThreshold = sharedPref.getInt(DISTANCE_M, 50)
+                    distanzbasiertesReporting()
                 }
                 ReportingStrategy.ENERGY_EFFICIENT -> {
-                    // TODO: getLocationEnergyEfficient
+                    configurableDistanceThreshold = sharedPref.getInt(DISTANCE_M, 50)
+                    configurableMaxSpeed = sharedPref.getInt(SENSING_SPEED_MS, 2)
+                    distanzbasiertesReporting()
                 }
                 ReportingStrategy.STILL -> {
-                    val value = sharedPref.getInt(DISTANCE_M, 50)
+                    configurableDistanceThreshold = sharedPref.getInt(DISTANCE_M, 50)
                     stillstandstrategie()
-                    distanzbasiertesReporting(value.toDouble())
+                    distanzbasiertesReporting()
                 }
                 else -> {
                     println("Keine Reporting Strategie angegeben!")
