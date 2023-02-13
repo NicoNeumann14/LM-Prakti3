@@ -222,7 +222,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                 putCircle(posiLogWithTime, Color.GREEN)
 
                 //todo flag für 1e setzten
-                if(true)
+                if(false)
                     saveInDatei()
 
 
@@ -450,12 +450,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
             inBewegung = speed >= 1
             if (!inBewegung){
                 if(!flagRemove){
-                    fusedProvider.removeLocationUpdates(locationCallback)
+                    locationManager.removeUpdates(this)
                     flagRemove = true
                 }
             }else{
                 if(flagRemove){
-                    fusedProvider.requestLocationUpdates(locationRequest, locationCallback, null)
+                    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, this)
                     flagRemove = false
                 }
 
