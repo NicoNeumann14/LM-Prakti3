@@ -67,6 +67,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
     private var unterMaxGesc = false
 
     private var fragGPS = false
+    private var flagRemove = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -114,8 +115,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                 }
                 ReportingStrategy.STILL -> {
                     val value = sharedPref.getInt(DISTANCE_M, 50)
-                    stillstandstrategie()
                     distanzbasiertesReporting(value.toDouble())
+                    stillstandstrategie()
                 }
                 else -> {
                     println("Keine Reporting Strategie angegeben!")
@@ -187,7 +188,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                         locationManager.removeUpdates(locationListener)
                     }
                     ReportingStrategy.STILL -> {
-                        locationManager.removeUpdates(locationListener)
+                        if(!flagRemove){
+                            locationManager.removeUpdates(locationListener)
+                        }
+
                         sensorManager.unregisterListener(this, sensorBeschleunigung)
                     }
 
@@ -408,16 +412,31 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         }
     }
 
+
+    @SuppressLint("MissingPermission")
     override fun onSensorChanged(p0: SensorEvent?) {
         if(p0!!.sensor.type == Sensor.TYPE_LINEAR_ACCELERATION) {
+
             val x = p0.values[0]
             val y = p0.values[1]
             val z = p0.values[2]
             val speed = kotlin.math.sqrt(
                 (x.toDouble().pow(2.0) + y.toDouble().pow(2.0) + z.toDouble().pow(2.0))
             )
-            Log.d("Speed", "onSensorChanged: $speed")
+            //Log.d("Speed", "onSensorChanged: $speed")
             inBewegung = speed >= 1
+            if (!inBewegung){
+                if(!flagRemove){
+                    fusedProvider.removeLocationUpdates(locationCallback)
+                    flagRemove = true
+                }
+            }else{
+                if(flagRemove){
+                    fusedProvider.requestLocationUpdates(locationRequest, locationCallback, null)
+                    flagRemove = false
+                }
+
+            }
         }
 
     }
@@ -467,8 +486,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                 }
                 ReportingStrategy.STILL -> {
                     val value = sharedPref.getInt(DISTANCE_M, 50)
-                    stillstandstrategie()
                     distanzbasiertesReporting(value.toDouble())
+                    stillstandstrategie()
                 }
                 else -> {
                     println("Keine Reporting Strategie angegeben!")
