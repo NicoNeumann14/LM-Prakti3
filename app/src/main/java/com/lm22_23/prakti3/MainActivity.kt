@@ -57,6 +57,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
     private var wayTime = arrayListOf<Long>()
     private var waypointsWithTime = JSONArray()
+    private var gpsfixCounter = 0
     private var postCounter = 0
 
     private var aktuellePosi = Location("aktuellePosi")
@@ -225,6 +226,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                 if(false)
                     saveInDatei()
 
+                Toast.makeText(applicationContext, actionbar.title.toString()+": gpsfixes = " + gpsfixCounter, Toast.LENGTH_LONG).show()
+                Toast.makeText(applicationContext, actionbar.title.toString()+": gpsfixesPOST = " + postCounter, Toast.LENGTH_LONG).show()
+
+                //Ausgabe per HTTP-POST
+                val ausgabeGPSfixes = "gpsfixes = " + gpsfixCounter
+                val ausgabeGPSfixesArray = JSONArray()
+                ausgabeGPSfixesArray.put(ausgabeGPSfixes)
+                httpPost(ausgabeGPSfixesArray, actionbar.title.toString()+"AnzahlFixes")
+
+                val ausgabeGPSfixesPOST = "gpsfixesPOST = " + postCounter
+                val ausgabeGPSfixesArrayPOST = JSONArray()
+                ausgabeGPSfixesArrayPOST.put(ausgabeGPSfixesPOST)
+                httpPost(ausgabeGPSfixesArrayPOST, actionbar.title.toString()+"AnzahlFixesPOST")
 
             }else{
                 Toast.makeText(this, "Zuwenig Time for Waypoints", Toast.LENGTH_SHORT).show()
@@ -237,6 +251,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
     //Aufgabe 1a
     @SuppressLint("MissingPermission")
     private fun getLocationPeriodisch(deltaTime:Long){
+
+        gpsfixCounter = 0
         postCounter = 0
         fusedProvider = LocationServices.getFusedLocationProviderClient(this)
         locationRequest = LocationRequest().setFastestInterval(deltaTime).setInterval(deltaTime).setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
@@ -247,6 +263,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                 super.onLocationResult(p0)
 
                 if(isStarted){
+
+                    gpsfixCounter++
+
                     val jsonLog = JSONObject()
                     jsonLog.put("Latitude", p0?.lastLocation?.latitude)
                     jsonLog.put("Longitude", p0?.lastLocation?.longitude)
@@ -312,6 +331,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
             }
 
             if(fragGPS){
+                //TODO: richtige Stelle?
+                gpsfixCounter++
 
                 when (intent.getSerializableExtra("ReportingStrategy")) {
                     ReportingStrategy.DISTANCE,
@@ -383,6 +404,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
     @SuppressLint("MissingPermission")
     private fun distanzbasiertesReporting() {
 
+        gpsfixCounter = 0
         postCounter = 0
         aktuellePosi.latitude = 0.0
         aktuellePosi.longitude = 0.0
