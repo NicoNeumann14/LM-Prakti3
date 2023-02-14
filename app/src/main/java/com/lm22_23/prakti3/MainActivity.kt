@@ -70,6 +70,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
     private var fragGPS = false
     private var flagRemove = false
+    private var flagSensingSpeed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,6 +81,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         val route1 = sharedPref.getBoolean(ROUTE_1, false)
         val route2 = sharedPref.getBoolean(ROUTE_2, false)
 //        val route3 = sharedPref.getBoolean(ROUTE_3, false)
+        flagSensingSpeed = sharedPref.getBoolean(SENSING_SPEED_ACTIVE, false)
 
         waypoints = if(route1)
             waypoints_route_1
@@ -159,7 +161,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         }
     }
 
-    //todo SaveButton, flag für 1e setzten bzw erstellen
     private fun initView() {
         val actionbar = supportActionBar
         when (intent.getSerializableExtra("ReportingStrategy")) {
@@ -222,8 +223,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                 putCircle(interPolartionsArray, Color.BLUE)
                 putCircle(posiLogWithTime, Color.GREEN)
 
-                //todo flag für 1e setzten
-                if(false)
+                if(flagSensingSpeed)
                     saveInDatei()
 
                 Toast.makeText(applicationContext, actionbar.title.toString()+": gpsfixes = " + gpsfixCounter, Toast.LENGTH_LONG).show()

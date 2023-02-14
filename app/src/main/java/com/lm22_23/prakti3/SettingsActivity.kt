@@ -26,10 +26,12 @@ class SettingsActivity : AppCompatActivity() {
         val rbRoute1 = binding.rbRoute1
         val rbRoute2 = binding.rbRoute2
         val rbRoute3 = binding.rbRoute3
+        val cbSensingSpeed = binding.cbSensingSpeed
 
         rbRoute1.isChecked = sharedPref.getBoolean(ROUTE_1, false)
         rbRoute2.isChecked = sharedPref.getBoolean(ROUTE_2, false)
         rbRoute3.isChecked = sharedPref.getBoolean(ROUTE_3, false)
+        cbSensingSpeed.isChecked = sharedPref.getBoolean(SENSING_SPEED_ACTIVE, false)
 
         rbRoute1.setOnCheckedChangeListener{
                 _, isChecked -> saveRadioInfo(ROUTE_1, isChecked)
@@ -39,6 +41,9 @@ class SettingsActivity : AppCompatActivity() {
         }
         rbRoute3.setOnCheckedChangeListener{
                 _, isChecked -> saveRadioInfo(ROUTE_3, isChecked)
+        }
+        cbSensingSpeed.setOnCheckedChangeListener{
+                _, isChecked -> saveRadioInfo(SENSING_SPEED_ACTIVE, isChecked)
         }
 
         initSeekBars(sharedPref)
@@ -96,25 +101,25 @@ class SettingsActivity : AppCompatActivity() {
 
         // Abtastrate
         val sbSensingSpeedValue = sharedPref.getInt(SENSING_SPEED_MS, 10)
-        binding.sbSensingSpeed.progress = sbSensingSpeedValue
+//        binding.sbSensingSpeed.progress = sbSensingSpeedValue
         string = "$sbSensingSpeedValue ms"
-        binding.twSensingSpeedMs.text = string
+//        binding.twSensingSpeedMs.text = string
 
-        binding.sbSensingSpeed.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val string = "$progress ms"
-                binding.twSensingSpeedMs.text = string
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                with(sharedPref.edit()) {
-                    putInt(SENSING_SPEED_MS, seekBar!!.progress)
-                    apply()
-                }
-            }
-        })
+//        binding.sbSensingSpeed.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+//            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+//                val string = "$progress ms"
+//                binding.twSensingSpeedMs.text = string
+//            }
+//
+//            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+//
+//            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+//                with(sharedPref.edit()) {
+//                    putInt(SENSING_SPEED_MS, seekBar!!.progress)
+//                    apply()
+//                }
+//            }
+//        })
     }
 
     private fun saveRadioInfo(key: String, value: Boolean) {

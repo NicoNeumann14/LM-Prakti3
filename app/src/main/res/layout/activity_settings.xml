@@ -171,7 +171,7 @@
             android:layout_width="0dp"
             android:layout_height="10dp" />
 
-        <LinearLayout
+        <!--LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -212,7 +212,17 @@
                     android:text="ms" />
             </LinearLayout>
 
-        </LinearLayout>
+        </LinearLayout-->
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="10dp" />
+
+        <CheckBox
+            android:id="@+id/cbSensingSpeed"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Abtastrate" />
 
     </LinearLayout>
 

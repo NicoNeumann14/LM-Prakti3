@@ -11,6 +11,8 @@ const val ROUTE_1 = "com.lm22_23.prakti3.ROUTE_1"
 const val ROUTE_2 = "com.lm22_23.prakti3.ROUTE_2"
 const val ROUTE_3 = "com.lm22_23.prakti3.ROUTE_3"
 
+const val SENSING_SPEED_ACTIVE = "com.lm22_23.prakti3.SENSING_SPEED_ACTIVE"
+
 
 // Route 1
 var waypoints_route_1 = arrayListOf(
