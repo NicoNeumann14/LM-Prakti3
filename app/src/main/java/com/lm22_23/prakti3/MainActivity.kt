@@ -276,7 +276,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                     val jsonArrayPost = JSONArray()
                     jsonArrayPost.put(jsonLog)
                     postCounter++
-                    httpPost(jsonArrayPost,"Periodisch-$postCounter")
+                    //httpPost(jsonArrayPost,"Periodisch-$postCounter")
                     Toast.makeText(applicationContext, "http-POST gesendet", Toast.LENGTH_SHORT).show()
                 }
 
@@ -369,15 +369,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
                             when (intent.getSerializableExtra("ReportingStrategy")) {
                                 ReportingStrategy.DISTANCE -> {
-                                    httpPost(jsonPositionPOST, "distanzbasiert-$postCounter")
+                                    //httpPost(jsonPositionPOST, "distanzbasiert-$postCounter")
                                 }
 
                                 ReportingStrategy.ENERGY_EFFICIENT -> {
-                                    httpPost(jsonPositionPOST, "energieeffizient-$postCounter")
+                                    //httpPost(jsonPositionPOST, "energieeffizient-$postCounter")
                                 }
 
                                 ReportingStrategy.STILL -> {
-                                    httpPost(jsonPositionPOST, "stillstandsbasiert-$postCounter")
+                                    //httpPost(jsonPositionPOST, "stillstandsbasiert-$postCounter")
                                 }
                             }
 
@@ -393,6 +393,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
         btnLocation.setOnClickListener {
             wayTime.add(location.time)
+            Toast.makeText(applicationContext, "Time wurde Gesetzt", Toast.LENGTH_SHORT).show()
                 if (!isStarted) {
                     isStarted = true
                 }
@@ -545,7 +546,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
     private fun httpPost(text: JSONArray, api:String){
         val client = OkHttpClient()
         val postBody = text.toString()
-        val request = Request.Builder().url("https://lm2022.free.beeceptor.com/$api")
+        val request = Request.Builder().url("https://lm-2022.free.beeceptor.com/$api")
             .post(postBody.toRequestBody()).build()
 
         client.newCall(request).enqueue(object: Callback {
